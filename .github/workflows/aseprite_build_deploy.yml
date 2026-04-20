@@ -25,10 +25,18 @@ jobs:
     - name: Get latest version info
       id: version_info
       run: |
-        data=$(curl -sL https://api.github.com/repos/aseprite/aseprite/releases/latest)
-        LATEST_TAG=$(echo "${data}" | jq -r '.tag_name')
-        DOWNLOAD_URL=$(echo "${data}" | jq -r '.assets[].browser_download_url')
-        VERSION_INFO=$(echo "${data}" | jq -r '.body')
+        data=$(curl -sL -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/aseprite/aseprite/releases/latest)
+        
+        # 检查 API 返回是否有效
+        if echo "${data}" | jq -e '.tag_name' > /dev/null 2>&1; then
+          LATEST_TAG=$(echo "${data}" | jq -r '.tag_name')
+          DOWNLOAD_URL=$(echo "${data}" | jq -r '.assets[0].browser_download_url')
+          VERSION_INFO=$(echo "${data}" | jq -r '.body // "No release notes available"')
+        else
+          echo "❌ 获取 Aseprite 版本信息失败，API 返回内容："
+          echo "${data}" | jq '.' 2>/dev/null || echo "${data}"
+          exit 1
+        fi
 
         echo "${LATEST_TAG}" > ${LATEST_TAG}.txt
         echo "latest_tag=${LATEST_TAG}" >> $GITHUB_OUTPUT
